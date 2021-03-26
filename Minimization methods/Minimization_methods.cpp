@@ -9,42 +9,7 @@
 #include <set>
 #include <algorithm>
 
-class Minimization_methods
-{
-private:
-    std::string function;
-    int count_variables;
-public:
-    Minimization_methods()
-    {
-        function = "";
-        count_variables = 0;
-    }
-    void Input()
-    {
-        std::cout << "Enter function: ";
-        std::cin >> function;
-        if (is_exp_of_2(function.size())) {
-            for (auto num : function) {
-                if (num != '0' && num != '1') {
-                    std::cout << "Invalid input, enter other function!" << std::endl;
-                    function.clear();
-                    Input();
-                }
-            }
-            count_variables = log2(function.size());
-        }
-        else {
-            std::cout << "Invalid input, enter other function!" << std::endl;
-            function.clear();
-            Input();
-        }
-    }
-    bool is_exp_of_2(int n)
-    {
-        return (n & (n - 1)) == 0;
-    }
-    std::string to_binary_string(unsigned int a)
+    std::string to_binary_string(unsigned int a, int count_variables)
     {
         long long n = 0;
         int k, m = 0;
@@ -54,32 +19,26 @@ public:
             n += k * pow(10, m);
             m++;
         }
-        std::string resault = toString(n);
+        std::string resault = std::to_string(n);
         while (resault.size() < count_variables) {
             resault.insert(resault.begin(), '0');
         }
         return resault;
     }
-    std::string toString(long long int val)
-    {
-        std::ostringstream oss;
-        oss << val;
-        return oss.str();
-    }
-    void SDNF()
+    void SDNF(std::string function, int count_variables)
     {
         bool flag_plus = false;
         std::cout << "SDNF = ";
         for (int i = 0; i < function.size(); ++i) {
             if (function[i] == '1') {
                 if (flag_plus) {
-                    std::cout << '+';
+                    std::cout << " + ";
                 }
                 flag_plus = true;
-                std::string set_of_variables = to_binary_string(i);
+                std::string set_of_variables = to_binary_string(i, count_variables);
                 for (int j = 0; j < count_variables; ++j) {
                     if (set_of_variables[j] == '0') {
-                        std::cout << "¬X" << j;
+                        std::cout << "!X" << j;
                     }
                     else {
                         std::cout << "X" << j;
@@ -89,29 +48,10 @@ public:
             }
         }
     }
-    void Quine_McCluskey_method()
-    {
-        std::map<int, std::vector<std::string>> groups;
-        for (int i = 0; i < function.size(); ++i) {
-            if (function[i] == '1') {
-                std::string set_of_variables = to_binary_string(i);
-                int count_1 = 0;
-                for (int j = 0; j < count_variables; ++j) {
-                    if (set_of_variables[j] == '1') {
-                        ++count_1;
-                    }
-                }
-                groups[count_1].push_back(set_of_variables);
-            }
-        }
-    }
-};
-
 
 class Quine_McCluskey_method
 {
 private:
-    //std::string function;
     int count_variables;
     std::string output_file_first = "first_implicants.txt";
     std::string output_file_segnificant = "significant_implicants.txt";
@@ -177,13 +117,7 @@ private:
         }
         return true;
     }
-public:
-    Quine_McCluskey_method(std::vector<std::string> _implicants, int _count_variables)
-        : implicants(_implicants), count_variables(_count_variables) {}
-    void Main_line()
-    {
 
-    }
     void Find_first_implicants(std::vector<std::string> sets)
     {
         bool flag = false;
@@ -257,17 +191,6 @@ public:
         }
         Print_table(first_implicants, output_file_first);
         int deleted_implicants = 0;
-        /*for (int i = 0; i < first_implicants.size(); ++i) {
-            if (std::find(indexes_significant_implicants.begin(), indexes_significant_implicants.end(), i) == indexes_significant_implicants.end()) {
-                for (int j = 0; j < table.size(); ++j) {
-                    table[j].erase(table[j].begin() + (i - deleted_implicants));
-                }
-                ++deleted_implicants;
-            }
-            else {
-                significant_implicants.push_back(first_implicants[i]);
-            }
-        }*/
         for (int i = 0; i < first_implicants.size(); ++i) {
             int count_1 = 0;
             for (int j = 0; j < table.size(); ++j) {
@@ -322,19 +245,26 @@ public:
             }
         }
     }
+public:
+    Quine_McCluskey_method(std::vector<std::string> _implicants, int _count_variables)
+        : implicants(_implicants), count_variables(_count_variables) 
+    {
+        Find_first_implicants(implicants);
+        Find_significant_implicants();
+        Print_result();
+    }
 };
 
 
 class Undefined_coefficient_method
 {
 private:
-    //std::string funtion;
     int count_variables;
     std::string function;
     std::ofstream fout;
-    //std::vector<std::pair<std::string, std::string>> coefficients;
     std::vector<std::vector<std::pair<std::string, std::string>>> system;
     std::set<std::pair<std::string, std::string>> zero_coefficients;
+    std::set<std::pair<std::string, std::string>> no_zero_coefficients;
     std::vector<std::pair<std::string, std::string>> significant_coefficients;
     std::string to_binary_string(unsigned int a)
     {
@@ -429,6 +359,11 @@ private:
             }
             Print_equation(system[i], i);
         }
+        for (int i = 0; i < system.size(); ++i) {
+            for (int j = 0; j < system[i].size(); ++j) {
+                no_zero_coefficients.insert(system[i][j]);
+            }
+        }
         std::sort(system.begin(), system.end(), [](const std::vector<std::pair<std::string, std::string>>& a, 
             const std::vector<std::pair<std::string, std::string>>& b) { return a.size() < b.size(); });
         for (int i = 0; i < system.size(); ++i) {
@@ -437,29 +372,36 @@ private:
     }
     void Find_significant_coefficients()
     {
+        std::vector<int> all_indexes;
         for (int i = 0; i < system.size(); ++i) {
-            bool coincidence = false;
-            for (auto coef : significant_coefficients) {
-                for (auto sys : system[i]) {
-                    if (coef == sys) {
-                        coincidence = true;
-                        break;
+            all_indexes.push_back(i);
+        }
+        while (all_indexes.size() > 0) {
+            std::pair<std::string, std::string> max_count_element;
+            std::vector<int> max_indexes;
+            for (auto coef : no_zero_coefficients) {
+                std::vector<int> buf_indexes = {};
+                for (int i = 0; i < all_indexes.size(); ++i) {
+                    if (std::find(system[all_indexes[i]].begin(), system[all_indexes[i]].end(), coef) != system[all_indexes[i]].end()) {
+                        buf_indexes.push_back(all_indexes[i]);
                     }
                 }
-                if (coincidence) {
-                    break;
+                if (max_indexes.size() < buf_indexes.size()) {
+                    max_count_element = coef;
+                    max_indexes = buf_indexes;
+                }
+                else if (max_indexes.size() == buf_indexes.size()) {
+                    if (max_count_element.first.size() > coef.first.size()) {
+                        max_count_element = coef;
+                        max_indexes = buf_indexes;
+                    }
                 }
             }
-            if (!coincidence) {
-                significant_coefficients.push_back(system[i][0]);
+            significant_coefficients.push_back(max_count_element);
+            for (auto index : max_indexes) {
+                std::vector<int>::iterator to_erase = std::find(all_indexes.begin(), all_indexes.end(), index);
+                all_indexes.erase(to_erase);
             }
-            //std::vector<std::pair<std::string, std::string>> res = {};
-            //std::vector<std::pair<std::string, std::string>>::iterator it;
-            //std::set_intersection(system[i].begin(), system[i].end(), significant_coefficients.begin(), significant_coefficients.end(), res);
-            //if (res.size() == 0) {
-              //  significant_coefficients.push_back(system[i][0]);
-                
-            //}
         }
         Print_set(significant_coefficients);
     }
@@ -498,33 +440,10 @@ public:
 
 int main()
 {
-    //Minimization_methods func_1;
-    //func_1.Input();
-    //func_1.SDNF();
-    /*std::vector<std::string> imp = { "000101", "000111", "001000", "010001", "010010", "010011", "010100", "010101", "010111", "011000", "011001", "011100", "011101", "011111", "100000", "100010", "100100", "100101", "100110", "100111", "101000", "101001", "101011", "101100", "101101", "101110", "101111", "110010", "110011", "111000", "111100", "111110" };
-    Quine_McCluskey_method qm(imp, 6);
-    qm.Find_first_implicants(imp);
-    qm.Find_significant_implicants();
-    qm.Print_result();*/
-    //std::set<std::pair<std::string, std::string>> koef;
-    //koef.insert(std::make_pair("00", "12"));
-    /*std::set<int> a;
-    a.insert(12);
-    a.insert(134);
-    a.insert(125);
-    a.insert(1);
-    a.insert(12345);
-    a.insert(1245);
-    a.insert(2);
-    a.insert(345);
-    a.insert(45);
-    std::string str = "234";
-    int c = std::stoi(str);
-    for (auto b : a) {
-        std::cout << b << ' ';
-    }*/
-
-
-    Undefined_coefficient_method mt("0000010110000000011111011100110110101111110111110011000010001010", 6);
-
+    std::string function = "0000010110000000011111011100110110101111110111110011000010001010";
+    int count_variables = log2(function.size());
+    std::vector<std::string> miniterms = { "000101", "000111", "001000", "010001", "010010", "010011", "010100", "010101", "010111", "011000", "011001", "011100", "011101", "011111", "100000", "100010", "100100", "100101", "100110", "100111", "101000", "101001", "101011", "101100", "101101", "101110", "101111", "110010", "110011", "111000", "111100", "111110" };
+    SDNF(function, count_variables);
+    Quine_McCluskey_method qm(miniterms, count_variables);
+    Undefined_coefficient_method mt(function, count_variables);
 }
